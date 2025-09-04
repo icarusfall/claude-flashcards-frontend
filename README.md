@@ -1,4 +1,4 @@
-# Claude Cards - AI-Powered Flashcards
+# Charlie's Claude Cards - AI-Powered Flashcards
 
 A spaced repetition flashcard app that uses Claude AI to generate study materials on demand.
 
@@ -57,5 +57,4 @@ Try prompts like:
 - "Spanish irregular verbs in past tense"
 - "German numbers 1-100 with pronunciation"
 - "Japanese hiragana characters"
-- "Chemistry periodic table first 20 elements"# claude-flashcards-frontend
-Simple flashcard app where Claude generates the flashcard content as well.
+- "Chemistry periodic table first 20 elements"
