@@ -436,6 +436,70 @@ export default function App() {
           </div>
         )}
 
+        {/* Edit Subject View */}
+        {currentView === 'edit-subject' && editingSubject && (
+          <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
+            <h2 className="text-xl font-bold text-white mb-4">Edit Subject</h2>
+            
+            <form onSubmit={updateSubject}>
+              <div className="mb-4">
+                <label className="block text-white text-sm font-medium mb-2">
+                  Subject Name
+                </label>
+                <input
+                  type="text"
+                  value={editForm.name}
+                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                  className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  required
+                />
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-white text-sm font-medium mb-2">
+                  Study Prompt
+                </label>
+                <textarea
+                  value={editForm.prompt}
+                  onChange={(e) => setEditForm({...editForm, prompt: e.target.value})}
+                  className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-white placeholder-white/60 focus:outline-none focus:ring-2 focus:ring-blue-400 h-32 resize-none"
+                  required
+                />
+                <div className="mt-2 text-xs text-white/60">
+                  💡 Tip: For French cards showing English first, try: "French GCSE vocabulary with English questions and French answers. Show English words/phrases first, then the French translation."
+                </div>
+                <div className="mt-2 text-xs text-orange-200">
+                  ⚠️ After saving changes, generate new cards to see the updated format.
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('subjects')}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white/80 font-medium py-2 px-4 rounded-md transition-all duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-600 hover:to-orange-700 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-md transition-all duration-200 flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    'Update Subject'
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        )}
+
         {/* Create Subject View */}
         {currentView === 'create-subject' && (
           <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
