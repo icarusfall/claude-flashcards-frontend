@@ -83,22 +83,47 @@ export default function App() {
 
     try {
       const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
-      const data = await apiCall(endpoint, {
+      
+      // Make auth call without token (for login/register)
+      const response = await fetch(`${BACKEND_URL}${endpoint}`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify(loginForm),
       });
 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+
       console.log('✅ Auth successful:', data);
       
+      // Set token and user
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem('token', data.token);
       setCurrentView('subjects');
       
-      // Fetch user data after successful auth
-      setTimeout(() => {
-        fetchUserData();
-      }, 100);
+      // Fetch subjects with the new token
+      console.log('📡 Fetching subjects with new token...');
+      const subjectsResponse = await fetch(`${BACKEND_URL}/subjects`, {
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${data.token}` // Use the token directly from response
+        }
+      });
+
+      const subjectsData = await subjectsResponse.json();
+      
+      if (subjectsResponse.ok) {
+        console.log('✅ Subjects loaded:', subjectsData.subjects?.length || 0);
+        setSubjects(subjectsData.subjects || []);
+      } else {
+        console.error('❌ Failed to load subjects:', subjectsData);
+      }
       
     } catch (error) {
       console.error('❌ Auth failed:', error);
