@@ -6,15 +6,16 @@ const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://claude-flashca
 export default function App() {
   // Auth state
   const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(null); // Don't access localStorage on initial render
   const [authMode, setAuthMode] = useState('login'); // 'login' or 'register'
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState('');
 
   // App state
-  const [currentView, setCurrentView] = useState('subjects'); // 'subjects', 'study', 'create-subject'
+  const [currentView, setCurrentView] = useState('subjects'); // 'subjects', 'study', 'create-subject', 'edit-subject'
   const [subjects, setSubjects] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState(null);
+  const [editingSubject, setEditingSubject] = useState(null);
   const [flashcards, setFlashcards] = useState([]);
   const [currentCard, setCurrentCard] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -24,6 +25,7 @@ export default function App() {
   // Form states
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [subjectForm, setSubjectForm] = useState({ name: '', prompt: '' });
+  const [editForm, setEditForm] = useState({ name: '', prompt: '' });
 
   // Session stats
   const [sessionStats, setSessionStats] = useState({
@@ -35,15 +37,32 @@ export default function App() {
     level: 1
   });
 
-  // Check for existing auth on load
+  // Check for existing auth on load (client-side only)
+  useEffect(() => {
+    // Only run this on the client side
+    if (typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('token');
+      if (storedToken) {
+        console.log('🔑 Found stored token, attempting to authenticate...');
+        setToken(storedToken);
+      } else {
+        console.log('🔍 No stored token found');
+      }
+    }
+  }, []);
+
+  // Only fetch data when we have a token
   useEffect(() => {
     if (token) {
+      console.log('✅ Token available, fetching user data...');
       fetchUserData();
     }
   }, [token]);
 
   // API helper with auth
   const apiCall = async (endpoint, options = {}) => {
+    console.log('📡 API Call:', endpoint, 'Token exists:', !!token);
+    
     const config = {
       headers: {
         'Content-Type': 'application/json',
@@ -52,8 +71,12 @@ export default function App() {
       ...options,
     };
 
+    console.log('📤 Request headers:', config.headers);
+
     const response = await fetch(`${BACKEND_URL}${endpoint}`, config);
     const data = await response.json();
+
+    console.log('📥 Response:', response.status, data);
 
     if (!response.ok) {
       throw new Error(data.error || `HTTP ${response.status}`);
@@ -64,13 +87,24 @@ export default function App() {
 
   // Auth functions
   const fetchUserData = async () => {
+    if (!token) {
+      console.log('⚠️ No token available for fetchUserData');
+      return;
+    }
+
     try {
+      console.log('📡 Fetching subjects...');
       const data = await apiCall('/subjects');
+      console.log('✅ Subjects loaded:', data.subjects?.length || 0);
       setSubjects(data.subjects || []);
       setError('');
     } catch (error) {
-      console.error('Auth check failed:', error);
-      logout();
+      console.error('❌ Failed to fetch subjects:', error);
+      // Only logout if it's definitely an auth error
+      if (error.message.includes('Access token required') || error.message.includes('Invalid token')) {
+        console.log('🚪 Invalid token, logging out...');
+        logout();
+      }
     }
   };
 
@@ -160,6 +194,34 @@ export default function App() {
       setError(error.message);
     }
     setLoading(false);
+  };
+
+  const updateSubject = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await apiCall(`/subjects/${editingSubject.id}`, {
+        method: 'PUT',
+        body: JSON.stringify(editForm),
+      });
+
+      // Update the subject in the list
+      setSubjects(subjects.map(s => s.id === editingSubject.id ? data.subject : s));
+      setEditForm({ name: '', prompt: '' });
+      setEditingSubject(null);
+      setCurrentView('subjects');
+    } catch (error) {
+      setError(error.message);
+    }
+    setLoading(false);
+  };
+
+  const startEditSubject = (subject) => {
+    setEditingSubject(subject);
+    setEditForm({ name: subject.name, prompt: subject.prompt });
+    setCurrentView('edit-subject');
   };
 
   const generateCards = async (subjectId) => {
@@ -368,7 +430,7 @@ export default function App() {
               <button
                 onClick={() => setCurrentView('create-subject')}
                 className={`flex-1 py-2 px-4 rounded-md font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
-                  currentView === 'create-subject'
+                  currentView === 'create-subject' || currentView === 'edit-subject'
                     ? 'bg-green-500 text-white'
                     : 'bg-white/20 text-white/80 hover:bg-white/30'
                 }`}
@@ -413,6 +475,12 @@ export default function App() {
                       className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-200 font-medium py-2 px-4 rounded-lg transition-all duration-200 disabled:opacity-50"
                     >
                       Study ({subject.card_count})
+                    </button>
+                    <button
+                      onClick={() => startEditSubject(subject)}
+                      className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 text-yellow-200 font-medium py-2 px-4 rounded-lg transition-all duration-200"
+                    >
+                      Edit
                     </button>
                     <button
                       onClick={() => {
@@ -648,39 +716,3 @@ export default function App() {
 
         {/* Session Complete */}
         {currentView === 'session-complete' && (
-          <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 mb-4 text-center">
-            <div className="text-4xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold text-white mb-4">Session Complete!</h2>
-            
-            <div className="grid grid-cols-2 gap-4 mb-6 text-center">
-              <div className="bg-white/20 rounded-lg p-3">
-                <div className="text-2xl font-bold text-green-400">{sessionStats.correct}</div>
-                <div className="text-white/80 text-sm">Correct</div>
-              </div>
-              <div className="bg-white/20 rounded-lg p-3">
-                <div className="text-2xl font-bold text-red-400">{sessionStats.incorrect}</div>
-                <div className="text-white/80 text-sm">Incorrect</div>
-              </div>
-              <div className="bg-white/20 rounded-lg p-3">
-                <div className="text-2xl font-bold text-yellow-400">{sessionStats.maxStreak}</div>
-                <div className="text-white/80 text-sm">Best Streak</div>
-              </div>
-              <div className="bg-white/20 rounded-lg p-3">
-                <div className="text-2xl font-bold text-purple-400">{sessionStats.xp} XP</div>
-                <div className="text-white/80 text-sm">Points Earned</div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setCurrentView('subjects')}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200"
-            >
-              Back to Subjects
-            </button>
-          </div>
-        )}
-
-      </div>
-    </div>
-  );
-}
