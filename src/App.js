@@ -386,7 +386,7 @@ export default function App() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Brain className="w-6 h-6 text-yellow-400" />
-              <h1 className="text-xl font-bold text-white">Claude Cards</h1>
+              <h1 className="text-xl font-bold text-white">Charlie's Claude Cards</h1>
             </div>
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-white/60" />
