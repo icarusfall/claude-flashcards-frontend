@@ -716,3 +716,39 @@ export default function App() {
 
         {/* Session Complete */}
         {currentView === 'session-complete' && (
+          <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 mb-4 text-center">
+            <div className="text-4xl mb-4">🎉</div>
+            <h2 className="text-2xl font-bold text-white mb-4">Session Complete!</h2>
+            
+            <div className="grid grid-cols-2 gap-4 mb-6 text-center">
+              <div className="bg-white/20 rounded-lg p-3">
+                <div className="text-2xl font-bold text-green-400">{sessionStats.correct}</div>
+                <div className="text-white/80 text-sm">Correct</div>
+              </div>
+              <div className="bg-white/20 rounded-lg p-3">
+                <div className="text-2xl font-bold text-red-400">{sessionStats.incorrect}</div>
+                <div className="text-white/80 text-sm">Incorrect</div>
+              </div>
+              <div className="bg-white/20 rounded-lg p-3">
+                <div className="text-2xl font-bold text-yellow-400">{sessionStats.maxStreak}</div>
+                <div className="text-white/80 text-sm">Best Streak</div>
+              </div>
+              <div className="bg-white/20 rounded-lg p-3">
+                <div className="text-2xl font-bold text-purple-400">{sessionStats.xp} XP</div>
+                <div className="text-white/80 text-sm">Points Earned</div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setCurrentView('subjects')}
+              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200"
+            >
+              Back to Subjects
+            </button>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+}
