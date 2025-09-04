@@ -79,6 +79,8 @@ export default function App() {
     setAuthLoading(true);
     setAuthError('');
 
+    console.log('🔐 Attempting authentication:', authMode, loginForm.email);
+
     try {
       const endpoint = authMode === 'login' ? '/auth/login' : '/auth/register';
       const data = await apiCall(endpoint, {
@@ -86,12 +88,20 @@ export default function App() {
         body: JSON.stringify(loginForm),
       });
 
+      console.log('✅ Auth successful:', data);
+      
       setToken(data.token);
       setUser(data.user);
       localStorage.setItem('token', data.token);
       setCurrentView('subjects');
-      fetchUserData();
+      
+      // Fetch user data after successful auth
+      setTimeout(() => {
+        fetchUserData();
+      }, 100);
+      
     } catch (error) {
+      console.error('❌ Auth failed:', error);
       setAuthError(error.message);
     }
     setAuthLoading(false);
