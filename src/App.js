@@ -257,12 +257,16 @@ export default function App() {
 
     try {
       const data = await apiCall(`/subjects/${subjectId}/study?limit=20`);
-      
+
       if (data.cards.length === 0) {
         setError('No cards available for study. Generate some cards first!');
         setLoading(false);
         return;
       }
+
+      // Find and set the selected subject for continue functionality
+      const subject = subjects.find(s => s.id === subjectId);
+      setSelectedSubject(subject);
 
       setFlashcards(data.cards);
       setCurrentCard(0);
@@ -286,7 +290,7 @@ export default function App() {
     const card = flashcards[currentCard];
 
     try {
-      await apiCall(`/cards/${card.id}/progress`, {
+      const response = await apiCall(`/cards/${card.id}/progress`, {
         method: 'POST',
         body: JSON.stringify({ correct }),
       });
@@ -305,13 +309,19 @@ export default function App() {
       newStats.level = Math.floor(newStats.xp / 100) + 1;
       setSessionStats(newStats);
 
+      // Show feedback message briefly
+      if (response.message) {
+        setError(response.message);
+        setTimeout(() => setError(''), 2000);
+      }
+
       // Move to next card
       setTimeout(() => {
         setShowAnswer(false);
         if (currentCard < flashcards.length - 1) {
           setCurrentCard(currentCard + 1);
         } else {
-          // Session complete
+          // Instead of ending session, offer to continue
           setCurrentView('session-complete');
         }
       }, 1500);
@@ -447,10 +457,25 @@ export default function App() {
           )}
         </div>
 
-        {/* Error display */}
+        {/* Error/Feedback display */}
         {error && (
-          <div className="bg-red-500/20 border border-red-500/50 rounded-lg p-3 mb-4">
-            <div className="text-red-200 text-sm">❌ {error}</div>
+          <div className={`border rounded-lg p-3 mb-4 ${
+            error.includes('Great!') || error.includes('Good job!')
+              ? 'bg-green-500/20 border-green-500/50'
+              : error.includes('practice')
+              ? 'bg-yellow-500/20 border-yellow-500/50'
+              : 'bg-red-500/20 border-red-500/50'
+          }`}>
+            <div className={`text-sm ${
+              error.includes('Great!') || error.includes('Good job!')
+                ? 'text-green-200'
+                : error.includes('practice')
+                ? 'text-yellow-200'
+                : 'text-red-200'
+            }`}>
+              {error.includes('Great!') || error.includes('Good job!') ? '✅' :
+               error.includes('practice') ? '📚' : '❌'} {error}
+            </div>
           </div>
         )}
 
@@ -911,8 +936,8 @@ export default function App() {
         {currentView === 'session-complete' && (
           <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 mb-4 text-center">
             <div className="text-4xl mb-4">🎉</div>
-            <h2 className="text-2xl font-bold text-white mb-4">Session Complete!</h2>
-            
+            <h2 className="text-2xl font-bold text-white mb-4">Round Complete!</h2>
+
             <div className="grid grid-cols-2 gap-4 mb-6 text-center">
               <div className="bg-white/20 rounded-lg p-3">
                 <div className="text-2xl font-bold text-green-400">{sessionStats.correct}</div>
@@ -932,12 +957,32 @@ export default function App() {
               </div>
             </div>
 
-            <button
-              onClick={() => setCurrentView('subjects')}
-              className="w-full bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200"
-            >
-              Back to Subjects
-            </button>
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  // Continue with more cards from the same subject
+                  if (selectedSubject) {
+                    startStudySession(selectedSubject.id);
+                  }
+                }}
+                disabled={loading || !selectedSubject}
+                className="w-full bg-gradient-to-r from-green-500 to-blue-600 hover:from-green-600 hover:to-blue-700 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-4 h-4" />
+                )}
+                Continue Studying
+              </button>
+
+              <button
+                onClick={() => setCurrentView('subjects')}
+                className="w-full bg-white/10 hover:bg-white/20 text-white/80 font-medium py-2 px-4 rounded-lg transition-all duration-200"
+              >
+                Back to Subjects
+              </button>
+            </div>
           </div>
         )}
 
