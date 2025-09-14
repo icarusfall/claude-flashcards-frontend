@@ -568,6 +568,142 @@ export default function App() {
           </div>
         )}
 
+        {/* Admin View */}
+        {currentView === 'admin' && user?.authType === 'admin' && (
+          <div className="space-y-6">
+            {/* Admin Stats */}
+            {adminStats && (
+              <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
+                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <BarChart3 className="w-6 h-6" />
+                  System Statistics
+                </h2>
+                
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div className="bg-white/20 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-blue-400">{adminStats.systemStats.total_subjects}</div>
+                    <div className="text-white/80 text-sm">Total Subjects</div>
+                  </div>
+                  <div className="bg-white/20 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-green-400">{adminStats.systemStats.total_cards}</div>
+                    <div className="text-white/80 text-sm">Total Cards</div>
+                  </div>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="text-white font-medium mb-2">Users by Type</h3>
+                  <div className="space-y-2">
+                    {adminStats.usersByType.map(stat => (
+                      <div key={stat.auth_type} className="flex justify-between text-white/80 text-sm">
+                        <span className="capitalize">{stat.auth_type}:</span>
+                        <span>{stat.count} users</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* User Management */}
+            <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
+              <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                <Users className="w-6 h-6" />
+                User Management
+              </h2>
+
+              <div className="space-y-3">
+                {adminUsers.map(user => (
+                  <div key={user.id} className="bg-white/20 rounded-lg p-4">
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="text-white font-medium">{user.email}</div>
+                        <div className="text-white/60 text-sm">
+                          {user.auth_type} • Joined {new Date(user.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setEditingUser(user)}
+                        className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 text-yellow-200 font-medium py-1 px-3 rounded text-sm"
+                      >
+                        Edit
+                      </button>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-3 text-center text-sm">
+                      <div>
+                        <div className="text-white/60">Subjects</div>
+                        <div className="text-white">{user.subject_count}</div>
+                      </div>
+                      <div>
+                        <div className="text-white/60">Cards</div>
+                        <div className="text-white">{user.total_cards}</div>
+                      </div>
+                      <div>
+                        <div className="text-white/60">Today</div>
+                        <div className="text-white">{user.cards_generated_today}/{user.daily_card_limit}</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Edit User Modal */}
+            {editingUser && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md">
+                  <h3 className="text-xl font-bold text-white mb-4">Edit User: {editingUser.email}</h3>
+                  
+                  <div className="mb-4">
+                    <label className="block text-white text-sm font-medium mb-2">
+                      Account Type
+                    </label>
+                    <select
+                      value={editingUser.auth_type}
+                      onChange={(e) => setEditingUser({...editingUser, auth_type: e.target.value})}
+                      className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                      <option value="guest" className="bg-slate-700">Guest (2 calls/day, 10 cards)</option>
+                      <option value="friend" className="bg-slate-700">Friend (5 calls/day, 100 cards)</option>
+                      <option value="premium" className="bg-slate-700">Premium (Unlimited)</option>
+                      <option value="admin" className="bg-slate-700">Admin (Unlimited + Admin Access)</option>
+                    </select>
+                  </div>
+
+                  <div className="mb-6">
+                    <label className="block text-white text-sm font-medium mb-2">
+                      Daily Card Limit
+                    </label>
+                    <input
+                      type="number"
+                      value={editingUser.daily_card_limit}
+                      onChange={(e) => setEditingUser({...editingUser, daily_card_limit: parseInt(e.target.value)})}
+                      className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      min="1"
+                    />
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setEditingUser(null)}
+                      className="flex-1 bg-white/10 hover:bg-white/20 text-white/80 font-medium py-2 px-4 rounded-md"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => updateUserAuthType(editingUser.id, editingUser.auth_type, editingUser.daily_card_limit)}
+                      disabled={loading}
+                      className="flex-1 bg-gradient-to-r from-purple-500 to-blue-600 hover:from-purple-600 hover:to-blue-700 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-md"
+                    >
+                      {loading ? 'Updating...' : 'Update User'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Create Subject View */}
         {currentView === 'create-subject' && (
           <div className="bg-white/10 backdrop-blur-md rounded-lg p-6">
