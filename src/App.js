@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle, XCircle, Star, Target, Brain, Zap, Plus, BookOpen, User, LogOut } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, Star, Target, Brain, Zap, Plus, BookOpen, User, LogOut, BarChart3, Users, Shield } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://claude-flashcards-backend-production.up.railway.app';
 
@@ -26,6 +26,11 @@ export default function App() {
   const [loginForm, setLoginForm] = useState({ email: '', password: '' });
   const [subjectForm, setSubjectForm] = useState({ name: '', prompt: '' });
   const [editForm, setEditForm] = useState({ name: '', prompt: '' });
+
+  // Admin states
+  const [adminStats, setAdminStats] = useState(null);
+  const [adminUsers, setAdminUsers] = useState([]);
+  const [editingUser, setEditingUser] = useState(null);
 
   // Session stats
   const [sessionStats, setSessionStats] = useState({
@@ -279,7 +284,7 @@ export default function App() {
 
   const handleAnswer = async (correct) => {
     const card = flashcards[currentCard];
-    
+
     try {
       await apiCall(`/cards/${card.id}/progress`, {
         method: 'POST',
@@ -296,7 +301,7 @@ export default function App() {
         maxStreak: correct ? Math.max(sessionStats.maxStreak, sessionStats.streak + 1) : sessionStats.maxStreak,
         xp: sessionStats.xp + xpGained
       };
-      
+
       newStats.level = Math.floor(newStats.xp / 100) + 1;
       setSessionStats(newStats);
 
@@ -313,6 +318,42 @@ export default function App() {
     } catch (error) {
       setError('Failed to save progress: ' + error.message);
     }
+  };
+
+  // Admin functions
+  const fetchAdminData = async () => {
+    if (user?.authType !== 'admin') return;
+
+    setLoading(true);
+    try {
+      const [statsData, usersData] = await Promise.all([
+        apiCall('/admin/stats'),
+        apiCall('/admin/users')
+      ]);
+
+      setAdminStats(statsData);
+      setAdminUsers(usersData.users);
+    } catch (error) {
+      setError('Failed to fetch admin data: ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  const updateUserAuthType = async (userId, authType, dailyCardLimit) => {
+    setLoading(true);
+    try {
+      await apiCall(`/admin/users/${userId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ authType, dailyCardLimit })
+      });
+
+      // Refresh admin data
+      await fetchAdminData();
+      setEditingUser(null);
+    } catch (error) {
+      setError('Failed to update user: ' + error.message);
+    }
+    setLoading(false);
   };
 
   // Render functions
@@ -438,6 +479,22 @@ export default function App() {
                 <Plus className="w-4 h-4" />
                 New Subject
               </button>
+              {user?.authType === 'admin' && (
+                <button
+                  onClick={() => {
+                    setCurrentView('admin');
+                    fetchAdminData();
+                  }}
+                  className={`flex-1 py-2 px-4 rounded-md font-medium transition-all duration-200 flex items-center justify-center gap-2 ${
+                    currentView === 'admin'
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-white/20 text-white/80 hover:bg-white/30'
+                  }`}
+                >
+                  <Shield className="w-4 h-4" />
+                  Admin
+                </button>
+              )}
             </div>
           </div>
         )}
