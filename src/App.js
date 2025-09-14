@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, CheckCircle, XCircle, Star, Target, Brain, Zap, Plus, BookOpen, User, LogOut, BarChart3, Users, Shield } from 'lucide-react';
+import { RefreshCw, CheckCircle, XCircle, Star, Target, Brain, Zap, Plus, BookOpen, User, LogOut, BarChart3, Users, Shield, Trash2, Edit3, Eye } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://claude-flashcards-backend-production.up.railway.app';
 
@@ -12,7 +12,7 @@ export default function App() {
   const [authError, setAuthError] = useState('');
 
   // App state
-  const [currentView, setCurrentView] = useState('subjects'); // 'subjects', 'study', 'create-subject', 'edit-subject'
+  const [currentView, setCurrentView] = useState('subjects'); // 'subjects', 'study', 'create-subject', 'edit-subject', 'manage-cards'
   const [subjects, setSubjects] = useState([]);
   const [selectedSubject, setSelectedSubject] = useState(null);
   const [editingSubject, setEditingSubject] = useState(null);
@@ -31,6 +31,11 @@ export default function App() {
   const [adminStats, setAdminStats] = useState(null);
   const [adminUsers, setAdminUsers] = useState([]);
   const [editingUser, setEditingUser] = useState(null);
+
+  // Card management states
+  const [managingCards, setManagingCards] = useState([]);
+  const [selectedCards, setSelectedCards] = useState([]);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
 
   // Session stats
   const [sessionStats, setSessionStats] = useState({
@@ -366,6 +371,81 @@ export default function App() {
     setLoading(false);
   };
 
+  // Card management functions
+  const fetchSubjectCards = async (subjectId) => {
+    setLoading(true);
+    try {
+      const data = await apiCall(`/subjects/${subjectId}/cards`);
+      setManagingCards(data.cards);
+    } catch (error) {
+      setError('Failed to fetch cards: ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  const startManageCards = (subject) => {
+    setSelectedSubject(subject);
+    setCurrentView('manage-cards');
+    fetchSubjectCards(subject.id);
+    setSelectedCards([]);
+  };
+
+  const deleteCard = async (cardId) => {
+    setLoading(true);
+    try {
+      await apiCall(`/cards/${cardId}`, {
+        method: 'DELETE'
+      });
+
+      // Remove card from local state
+      setManagingCards(managingCards.filter(card => card.id !== cardId));
+
+      // Update subjects list to reflect new card count
+      fetchUserData();
+
+      setDeleteConfirm(null);
+      setError('Card deleted successfully');
+      setTimeout(() => setError(''), 2000);
+    } catch (error) {
+      setError('Failed to delete card: ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  const deleteSelectedCards = async () => {
+    if (selectedCards.length === 0) return;
+
+    setLoading(true);
+    try {
+      await Promise.all(
+        selectedCards.map(cardId =>
+          apiCall(`/cards/${cardId}`, { method: 'DELETE' })
+        )
+      );
+
+      // Remove cards from local state
+      setManagingCards(managingCards.filter(card => !selectedCards.includes(card.id)));
+      setSelectedCards([]);
+
+      // Update subjects list
+      fetchUserData();
+
+      setError(`${selectedCards.length} card(s) deleted successfully`);
+      setTimeout(() => setError(''), 2000);
+    } catch (error) {
+      setError('Failed to delete cards: ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  const toggleCardSelection = (cardId) => {
+    setSelectedCards(prev =>
+      prev.includes(cardId)
+        ? prev.filter(id => id !== cardId)
+        : [...prev, cardId]
+    );
+  };
+
   // Render functions
   if (!token) {
     return (
@@ -550,18 +630,29 @@ export default function App() {
                     </div>
                   </div>
                   
-                  <div className="flex gap-2">
+                  <div className="grid grid-cols-2 gap-2 mb-2">
                     <button
                       onClick={() => startStudySession(subject.id)}
                       disabled={loading || subject.card_count === 0}
-                      className="flex-1 bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-200 font-medium py-2 px-4 rounded-lg transition-all duration-200 disabled:opacity-50"
+                      className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-200 font-medium py-2 px-4 rounded-lg transition-all duration-200 disabled:opacity-50"
                     >
                       Study ({subject.card_count})
                     </button>
                     <button
-                      onClick={() => startEditSubject(subject)}
-                      className="bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 text-yellow-200 font-medium py-2 px-4 rounded-lg transition-all duration-200"
+                      onClick={() => startManageCards(subject)}
+                      disabled={loading || subject.card_count === 0}
+                      className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/50 text-purple-200 font-medium py-2 px-4 rounded-lg transition-all duration-200 disabled:opacity-50 flex items-center justify-center gap-2"
                     >
+                      <Eye className="w-4 h-4" />
+                      Manage Cards
+                    </button>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => startEditSubject(subject)}
+                      className="flex-1 bg-yellow-500/20 hover:bg-yellow-500/30 border border-yellow-500/50 text-yellow-200 font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2"
+                    >
+                      <Edit3 className="w-4 h-4" />
                       Edit
                     </button>
                     <button
@@ -570,7 +661,7 @@ export default function App() {
                         generateCards(subject.id);
                       }}
                       disabled={loading}
-                      className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/50 text-green-200 font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-2 disabled:opacity-50"
+                      className="flex-1 bg-green-500/20 hover:bg-green-500/30 border border-green-500/50 text-green-200 font-medium py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50"
                     >
                       {loading && selectedSubject?.id === subject.id ? (
                         <RefreshCw className="w-4 h-4 animate-spin" />
@@ -647,6 +738,169 @@ export default function App() {
                 </button>
               </div>
             </form>
+          </div>
+        )}
+
+        {/* Manage Cards View */}
+        {currentView === 'manage-cards' && selectedSubject && (
+          <div className="space-y-4">
+            <div className="bg-white/10 backdrop-blur-md rounded-lg p-4">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-xl font-bold text-white">Manage Cards</h2>
+                  <p className="text-white/60">{selectedSubject.name}</p>
+                </div>
+                <div className="text-white/80 text-sm">
+                  {managingCards.length} cards total
+                </div>
+              </div>
+
+              {selectedCards.length > 0 && (
+                <div className="bg-white/20 rounded-lg p-3 mb-4 flex items-center justify-between">
+                  <span className="text-white text-sm">
+                    {selectedCards.length} card(s) selected
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedCards([])}
+                      className="bg-white/20 hover:bg-white/30 text-white/80 text-xs py-1 px-3 rounded transition-all"
+                    >
+                      Clear
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirm({ type: 'multiple', count: selectedCards.length })}
+                      className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-200 text-xs py-1 px-3 rounded transition-all"
+                    >
+                      Delete Selected
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-2 mb-4">
+                <button
+                  onClick={() => setCurrentView('subjects')}
+                  className="bg-white/10 hover:bg-white/20 text-white/80 font-medium py-2 px-4 rounded-lg transition-all duration-200"
+                >
+                  Back to Subjects
+                </button>
+                <button
+                  onClick={() =>
+                    setSelectedCards(
+                      selectedCards.length === managingCards.length
+                        ? []
+                        : managingCards.map(card => card.id)
+                    )
+                  }
+                  className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/50 text-blue-200 font-medium py-2 px-4 rounded-lg transition-all duration-200"
+                >
+                  {selectedCards.length === managingCards.length ? 'Deselect All' : 'Select All'}
+                </button>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 text-center">
+                <RefreshCw className="w-8 h-8 animate-spin text-white/60 mx-auto mb-2" />
+                <p className="text-white/60">Loading cards...</p>
+              </div>
+            ) : managingCards.length === 0 ? (
+              <div className="bg-white/10 backdrop-blur-md rounded-lg p-6 text-center">
+                <BookOpen className="w-12 h-12 text-white/60 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-white mb-2">No cards yet</h3>
+                <p className="text-white/60">Generate some cards to get started!</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {managingCards.map((card) => (
+                  <div key={card.id} className="bg-white/10 backdrop-blur-md rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedCards.includes(card.id)}
+                        onChange={() => toggleCardSelection(card.id)}
+                        className="mt-1 w-4 h-4 text-blue-600 bg-white/20 border-white/30 rounded focus:ring-blue-500 focus:ring-2"
+                      />
+
+                      <div className="flex-1 min-w-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+                          <div className="bg-white/20 rounded-lg p-3">
+                            <div className="text-white/80 text-xs mb-1">Question:</div>
+                            <div className="text-white font-medium">{card.front}</div>
+                          </div>
+                          <div className="bg-white/20 rounded-lg p-3">
+                            <div className="text-white/80 text-xs mb-1">Answer:</div>
+                            <div className="text-white font-medium">{card.back}</div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs text-white/60">
+                          <div className="flex items-center gap-4">
+                            <span>{card.category} • {card.difficulty}</span>
+                            <span>✓ {card.correct_count} | ✗ {card.incorrect_count}</span>
+                            <span>Confidence: {(card.confidence_level * 100).toFixed(0)}%</span>
+                          </div>
+                          <button
+                            onClick={() => setDeleteConfirm({ type: 'single', cardId: card.id, cardFront: card.front })}
+                            className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/50 text-red-200 py-1 px-2 rounded transition-all duration-200 flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {deleteConfirm && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+            <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md">
+              <h3 className="text-xl font-bold text-white mb-4">
+                {deleteConfirm.type === 'single' ? 'Delete Card' : `Delete ${deleteConfirm.count} Cards`}
+              </h3>
+
+              <div className="text-white/80 mb-6">
+                {deleteConfirm.type === 'single' ? (
+                  <>
+                    Are you sure you want to delete this card?
+                    <div className="bg-white/10 rounded-lg p-3 mt-2">
+                      <div className="text-sm text-white/60">Question:</div>
+                      <div className="text-white">{deleteConfirm.cardFront}</div>
+                    </div>
+                  </>
+                ) : (
+                  `Are you sure you want to delete ${deleteConfirm.count} selected cards? This action cannot be undone.`
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  className="flex-1 bg-white/10 hover:bg-white/20 text-white/80 font-medium py-2 px-4 rounded-md transition-all duration-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    if (deleteConfirm.type === 'single') {
+                      deleteCard(deleteConfirm.cardId);
+                    } else {
+                      deleteSelectedCards();
+                    }
+                  }}
+                  disabled={loading}
+                  className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 disabled:opacity-50 text-white font-medium py-2 px-4 rounded-md transition-all duration-200"
+                >
+                  {loading ? 'Deleting...' : 'Delete'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
